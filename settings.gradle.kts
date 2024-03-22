@@ -26,4 +26,5 @@ include(
         ":compose:recomposehighlighter",
         ":kotlin",
         ":compose:snippets",
+        ":camera"
 )
