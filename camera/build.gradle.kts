@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.camera"
-        minSdk = libs.versions.minSdk.get().toInt()
+        minSdk = 26
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
@@ -78,6 +78,11 @@ android {
 
 dependencies {
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.extensions)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.viewfinder)
+    implementation(libs.androidx.camera.lifecycle)
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
@@ -130,6 +135,8 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
 
     implementation(libs.androidx.recyclerview)
+
+    implementation(libs.androidx.futures.ktx)
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)

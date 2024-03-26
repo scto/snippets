@@ -10,13 +10,14 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        snapshotVersion?.let {
-            println("https://androidx.dev/snapshots/builds/$it/artifacts/repository/")
-            maven { url = uri("https://androidx.dev/snapshots/builds/$it/artifacts/repository/") }
-        }
-
         google()
         mavenCentral()
+        if(snapshotVersion != null) {
+            println("Overriding default snapshot version: https://androidx.dev/snapshots/builds/$snapshotVersion/artifacts/repository/")
+            maven { url = uri("https://androidx.dev/snapshots/builds/$snapshotVersion/artifacts/repository/") }
+        } else {
+            maven { url = uri("https://androidx.dev/snapshots/builds/11621196/artifacts/repository/") }
+        }
     }
 }
 rootProject.name = "snippets"
