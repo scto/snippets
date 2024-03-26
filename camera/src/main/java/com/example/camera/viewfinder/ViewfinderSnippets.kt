@@ -1,6 +1,7 @@
 package com.example.camera.viewfinder
 
 import android.app.Application
+import android.view.Surface
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
@@ -10,14 +11,36 @@ import androidx.camera.viewfinder.compose.Viewfinder
 import androidx.camera.viewfinder.surface.ImplementationMode
 import androidx.camera.viewfinder.surface.TransformationInfo
 import androidx.camera.viewfinder.surface.ViewfinderSurfaceRequest
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.AndroidExternalSurface
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment.Companion.BottomCenter
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
+import androidx.concurrent.futures.await
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -25,7 +48,6 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.work.await
 import com.example.camera.util.SmoothImmersiveRotationEffect
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -48,10 +70,81 @@ fun LowLevelPreview(
 ) {
     // As long as this screen is showing, go to immersive mode and don't animate on rotation
     SmoothImmersiveRotationEffect(LocalContext.current)
-    if(useViewfinderLib) {
-        WithViewfinderSnippet(modifier)
-    } else {
-        WithoutViewfinder(modifier)
+    Box(modifier = modifier.fillMaxSize()) {
+        if (useViewfinderLib) {
+            WithViewfinderSnippet()
+        } else {
+            WithoutViewfinder()
+        }
+        Overlay(Modifier)
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+private fun OverlayLandscape() {
+    Overlay(Modifier.requiredSize(400.dp, 200.dp))
+}
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+private fun OverlayPortrait() {
+    Overlay(Modifier.requiredSize(200.dp, 400.dp))
+}
+
+@Composable
+fun Overlay(modifier: Modifier) {
+    var currentOrientation by remember { mutableIntStateOf(Surface.ROTATION_0) }
+    val currentDegrees = currentOrientation * 90f
+    val newOrientation = LocalConfiguration.current.orientation
+    val display = LocalView.current.display
+    LaunchedEffect(newOrientation, display) {
+        val newRotation = display.rotation
+        if (currentOrientation != newRotation) {
+            currentOrientation = newRotation
+        }
+    }
+    Box(
+        modifier
+            .fillMaxSize()
+            .layout { measurable, constraints ->
+                val height = maxOf(constraints.maxWidth, constraints.maxHeight)
+                val width = minOf(constraints.maxWidth, constraints.maxHeight)
+                val placeable = measurable.measure(
+                    Constraints.fixed(width, height)
+                )
+
+                layout(placeable.width, placeable.height) {
+                    placeable.placeWithLayer(0, 0) {
+                        if (constraints.maxWidth > constraints.maxHeight) {
+                            rotationZ = - currentDegrees
+                        }
+                    }
+                }
+            }) {
+        // TODO: Better transition (e.g. 0 > 270 should be 0 > -90)
+        val animatedDegrees: Float by animateFloatAsState(currentDegrees)
+        Row(
+            modifier = Modifier
+                .align(BottomCenter)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(onClick = { /*TODO*/ },
+                Modifier.graphicsLayer { rotationZ = animatedDegrees }
+            ) {
+                Icon(Icons.Filled.Favorite, contentDescription = null)
+            }
+            IconButton(onClick = { /*TODO*/ },
+                Modifier.graphicsLayer { rotationZ = animatedDegrees }
+            ) {
+                Icon(Icons.Filled.Favorite, contentDescription = null)
+            }
+            IconButton(onClick = { /*TODO*/ },
+                Modifier.graphicsLayer { rotationZ = animatedDegrees }
+            ) {
+                Icon(Icons.Filled.Favorite, contentDescription = null)
+            }
+        }
     }
 }
 
@@ -197,6 +290,7 @@ class ViewfinderViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 }
+
 private class CoroutineLifecycleOwner(coroutineContext: CoroutineContext) :
     LifecycleOwner {
     private val lifecycleRegistry: LifecycleRegistry =
