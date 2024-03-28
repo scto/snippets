@@ -23,12 +23,14 @@ plugins {
 
 android {
     compileSdk = libs.versions.compileSdk.get().toInt()
+//    compileSdkPreview = "VanillaIceCream"
     namespace = "com.example.camera"
 
     defaultConfig {
         applicationId = "com.example.camera"
         minSdk = 26
         targetSdk = libs.versions.targetSdk.get().toInt()
+//        targetSdkPreview = "VanillaIceCream"
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -37,12 +37,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.camera.Screen.CONCURRENT_CAMERA_PREVIEW
 import com.example.camera.Screen.HOME
 import com.example.camera.Screen.PREVIEW_BASIC
 import com.example.camera.Screen.PREVIEW_VIEWFINDER
 import com.example.camera.Screen.RECORD_VIDEO_WITH_CAMERA_APP
 import com.example.camera.Screen.TAKE_PICTURE_HIGH_LEVEL
 import com.example.camera.Screen.TAKE_PICTURE_WITH_CAMERA_APP
+import com.example.camera.concurrent.ConcurrentCameraScreen
 import com.example.camera.systemcamera.RecordVideo_WithCameraApp
 import com.example.camera.systemcamera.TakePicture_HighLevel
 import com.example.camera.systemcamera.TakePicture_WithCameraApp
@@ -72,7 +74,8 @@ enum class Screen {
     RECORD_VIDEO_WITH_CAMERA_APP,
     TAKE_PICTURE_HIGH_LEVEL,
     PREVIEW_BASIC,
-    PREVIEW_VIEWFINDER
+    PREVIEW_VIEWFINDER,
+    CONCURRENT_CAMERA_PREVIEW
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -93,6 +96,7 @@ fun MyApp(modifier: Modifier = Modifier) {
                 TAKE_PICTURE_HIGH_LEVEL -> TakePicture_HighLevel()
                 PREVIEW_BASIC -> LowLevelPreview(useViewfinderLib = false)
                 PREVIEW_VIEWFINDER -> LowLevelPreview(useViewfinderLib = true)
+                CONCURRENT_CAMERA_PREVIEW -> ConcurrentCameraScreen()
             }
         }
     } else {
@@ -114,7 +118,11 @@ fun Home(
     modifier: Modifier = Modifier
 ) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(modifier.padding(innerPadding).fillMaxSize().wrapContentSize()) {
+        Column(
+            modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .wrapContentSize()) {
             Button({ onScreenChange(TAKE_PICTURE_WITH_CAMERA_APP) }) {
                 Text("Take Picture with Camera App")
             }
@@ -129,6 +137,9 @@ fun Home(
             }
             Button({ onScreenChange(PREVIEW_VIEWFINDER) }) {
                 Text("Preview with viewfinder lib")
+            }
+            Button({ onScreenChange(CONCURRENT_CAMERA_PREVIEW) }) {
+                Text("Concurrent camera preview")
             }
         }
     }

@@ -1,6 +1,6 @@
 package com.example.camera.viewfinder
 
-import android.app.Application
+import android.content.Context
 import android.view.Surface
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
@@ -40,17 +40,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.concurrent.futures.await
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.camera.util.AsyncCameraProvider
+import com.example.camera.util.CoroutineLifecycleOwner
 import com.example.camera.util.SmoothImmersiveRotationEffect
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,7 +62,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
 
 @Composable
@@ -85,6 +86,7 @@ fun LowLevelPreview(
 private fun OverlayLandscape() {
     Overlay(Modifier.requiredSize(400.dp, 200.dp))
 }
+
 @androidx.compose.ui.tooling.preview.Preview
 @Composable
 private fun OverlayPortrait() {
@@ -116,7 +118,7 @@ fun Overlay(modifier: Modifier) {
                 layout(placeable.width, placeable.height) {
                     placeable.placeWithLayer(0, 0) {
                         if (constraints.maxWidth > constraints.maxHeight) {
-                            rotationZ = - currentDegrees
+                            rotationZ = -currentDegrees
                         }
                     }
                 }
@@ -153,8 +155,16 @@ fun Overlay(modifier: Modifier) {
 @Composable
 fun WithoutViewfinder(
     modifier: Modifier = Modifier,
-    viewModel: ViewfinderViewModel = viewModel()
+    viewModel: ViewfinderViewModel = viewModel(
+        factory = ViewfinderViewModelFactory(LocalContext.current.applicationContext)
+    )
 ) {
+    LifecycleStartEffect(viewModel) {
+        viewModel.startCamera()
+        onStopOrDispose {
+            viewModel.stopCamera()
+        }
+    }
     val surfaceRequest by viewModel.surfaceRequest.collectAsStateWithLifecycle()
     surfaceRequest?.let { request ->
         AndroidExternalSurface(modifier.fillMaxSize()) {
@@ -178,21 +188,38 @@ fun WithoutViewfinder(
 @Composable
 fun WithViewfinderSnippet(
     modifier: Modifier = Modifier,
-    viewModel: ViewfinderViewModel = viewModel()
+    viewModel: ViewfinderViewModel = viewModel(
+        factory = ViewfinderViewModelFactory(LocalContext.current.applicationContext)
+    )
 ) {
+    LifecycleStartEffect(viewModel) {
+        viewModel.startCamera()
+        onStopOrDispose {
+            viewModel.stopCamera()
+        }
+    }
+
     val surfaceRequest by viewModel.surfaceRequest.collectAsStateWithLifecycle()
-    val currentSurfaceRequest = surfaceRequest
-    if (currentSurfaceRequest != null) {
+
+    Viewfinder(surfaceRequest, modifier)
+}
+
+@Composable
+fun Viewfinder(
+    surfaceRequest: SurfaceRequest?,
+    modifier: Modifier = Modifier
+) {
+    if (surfaceRequest != null) {
         val viewfinderArgs by produceState<ViewfinderArgs?>(
             initialValue = null,
             surfaceRequest
         ) {
             val viewfinderSurfaceRequest =
                 ViewfinderSurfaceRequest
-                    .Builder(currentSurfaceRequest.resolution)
+                    .Builder(surfaceRequest.resolution)
                     .build()
 
-            currentSurfaceRequest.addRequestCancellationListener(Runnable::run) {
+            surfaceRequest.addRequestCancellationListener(Runnable::run) {
                 viewfinderSurfaceRequest.markSurfaceSafeToRelease()
             }
 
@@ -200,19 +227,19 @@ fun WithViewfinderSnippet(
             launch(start = CoroutineStart.UNDISPATCHED) {
                 try {
                     val surface = viewfinderSurfaceRequest.getSurface()
-                    currentSurfaceRequest.provideSurface(surface, Runnable::run) {
+                    surfaceRequest.provideSurface(surface, Runnable::run) {
                         viewfinderSurfaceRequest.markSurfaceSafeToRelease()
                     }
                 } finally {
                     // If we haven't provided the surface, such as if we're cancelled
                     // while suspending on getSurface(), this call will succeed. Otherwise
                     // it will be a no-op.
-                    currentSurfaceRequest.willNotProvideSurface()
+                    surfaceRequest.willNotProvideSurface()
                 }
             }
 
             val transformationInfos = MutableStateFlow<SurfaceRequest.TransformationInfo?>(null)
-            currentSurfaceRequest.setTransformationInfoListener(Runnable::run) {
+            surfaceRequest.setTransformationInfoListener(Runnable::run) {
                 transformationInfos.value = it
             }
 
@@ -229,7 +256,7 @@ fun WithViewfinderSnippet(
                         snapshotImplementationMode != null && implMode != snapshotImplementationMode
                     if (shouldAbort) {
                         // Abort flow and invalidate SurfaceRequest so a new one will be sent
-                        currentSurfaceRequest.invalidate()
+                        surfaceRequest.invalidate()
                     }
                     !shouldAbort
                 }.collectLatest { (implMode, transformInfo) ->
@@ -267,7 +294,15 @@ private data class ViewfinderArgs(
     val transformationInfo: TransformationInfo
 )
 
-class ViewfinderViewModel(application: Application) : AndroidViewModel(application) {
+class ViewfinderViewModelFactory(private val application: Context) :
+    ViewModelProvider.NewInstanceFactory() {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        ViewfinderViewModel(AsyncCameraProvider(application)) as T
+}
+
+class ViewfinderViewModel(
+    asyncCameraProvider: AsyncCameraProvider
+) : ViewModel() {
     private val _surfaceRequest = MutableStateFlow<SurfaceRequest?>(null)
     val surfaceRequest: StateFlow<SurfaceRequest?> = _surfaceRequest
     private val previewUseCase = Preview.Builder().build().apply {
@@ -277,10 +312,17 @@ class ViewfinderViewModel(application: Application) : AndroidViewModel(applicati
     }
     private val useCaseGroup = UseCaseGroup.Builder().addUseCase(previewUseCase).build()
     private lateinit var cameraProvider: ProcessCameraProvider
+    private var runningCameraJob: Job? = null
 
-    init {
-        viewModelScope.launch {
-            cameraProvider = ProcessCameraProvider.getInstance(application).await()
+    private var initializationDeferred: Deferred<Unit> = viewModelScope.async {
+        cameraProvider = asyncCameraProvider.getCameraProvider()
+    }
+
+    fun startCamera() {
+        stopCamera()
+        runningCameraJob = viewModelScope.launch {
+            // Ensure CameraUseCase is initialized before starting camera
+            initializationDeferred.await()
             cameraProvider.bindToLifecycle(
                 CoroutineLifecycleOwner(coroutineContext),
                 CameraSelector.DEFAULT_BACK_CAMERA,
@@ -289,30 +331,12 @@ class ViewfinderViewModel(application: Application) : AndroidViewModel(applicati
             awaitCancellation()
         }
     }
-}
 
-private class CoroutineLifecycleOwner(coroutineContext: CoroutineContext) :
-    LifecycleOwner {
-    private val lifecycleRegistry: LifecycleRegistry =
-        LifecycleRegistry(this).apply {
-            currentState = Lifecycle.State.INITIALIZED
-        }
-
-    override val lifecycle: Lifecycle
-        get() = lifecycleRegistry
-
-    init {
-        if (coroutineContext[Job]?.isActive == true) {
-            lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-            coroutineContext[Job]?.invokeOnCompletion {
-                lifecycleRegistry.apply {
-                    currentState = Lifecycle.State.STARTED
-                    currentState = Lifecycle.State.CREATED
-                    currentState = Lifecycle.State.DESTROYED
-                }
+    fun stopCamera() {
+        runningCameraJob?.apply {
+            if (isActive) {
+                cancel()
             }
-        } else {
-            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         }
     }
 }
