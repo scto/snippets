@@ -21,11 +21,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.Intent.createChooser
 import android.graphics.Bitmap
+import android.graphics.ColorMatrixColorFilter
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.FloatRange
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +37,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
@@ -49,11 +53,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.inset
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -266,4 +279,117 @@ private fun shareBitmap(context: Context, uri: Uri) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     startActivity(context, createChooser(intent, "Share your image"), null)
+}
+
+
+
+fun Modifier.blurLayer(layer: GraphicsLayer): Modifier {
+    return this.drawWithContent {
+        applyBlurToLayer(layer) {
+            this@drawWithContent.drawContent()
+        }
+    }
+}
+@RequiresApi(Build.VERSION_CODES.S)
+fun DrawScope.applyBlurToLayer(
+    layer: GraphicsLayer,
+    content: DrawScope.() -> Unit
+) {
+    layer.apply {
+        record {
+            content()
+        }
+        // Configure a blur to the contents of the layer that is applied
+        // when drawn to the destination DrawScope
+        renderEffect = BlurEffect(20f, 20f, TileMode.Decal)
+    }
+    drawLayer(layer)
+}
+
+@Preview
+@Composable
+private fun GraphicsLayerBlurBackground() {
+    Box(modifier = Modifier
+            .fillMaxSize()){
+        Image(
+            painter = painterResource(id = R.drawable.sunset),
+            contentDescription = null
+        )
+        val graphicsLayer2 = rememberGraphicsLayer()
+        Image(
+            painter = painterResource(id = R.drawable.dog),
+            modifier = Modifier
+                .blendLayer(graphicsLayer2, BlendMode.Lighten),
+            contentDescription = null
+        )
+        val graphicsLayer3 = rememberGraphicsLayer()
+        Image(
+            painter = painterResource(id = R.drawable.rainbow),
+            modifier = Modifier
+                .blendLayer(graphicsLayer3, BlendMode.Screen),
+            contentDescription = null
+        )
+    }
+}
+
+fun Modifier.blendLayer(layer: GraphicsLayer, blendMode: BlendMode): Modifier {
+    return this.drawWithContent {
+        layer.apply {
+            record {
+                this@drawWithContent.drawContent()
+            }
+            this.blendMode = blendMode
+        }
+        drawLayer(layer)
+    }
+}
+
+fun Modifier.saturateLayer(layer: GraphicsLayer, @FloatRange(from= 0.0, to = 1.0) saturation: Float): Modifier {
+    return this.drawWithContent {
+        layer.apply {
+            record {
+                this@drawWithContent.drawContent()
+            }
+            this.colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
+        }
+        drawLayer(layer)
+    }
+}
+
+fun Modifier.contrastBrightnessLayer(layer: GraphicsLayer,
+                                     @FloatRange(from= 0.0, to = 10.0) contrast: Float = 1f,
+                                     @FloatRange(from = -255.0, to = 255.0) brightness: Float = 0f): Modifier {
+    return this.drawWithContent {
+        layer.apply {
+            record {
+                this@drawWithContent.drawContent()
+            }
+            val colorMatrix = floatArrayOf(
+                contrast, 0f, 0f, 0f, brightness,
+                0f, contrast, 0f, 0f, brightness,
+                0f, 0f, contrast, 0f, brightness,
+                0f, 0f, 0f, 1f, 0f
+            )
+            this.colorFilter = ColorFilter.colorMatrix(ColorMatrix(colorMatrix))
+
+        }
+        drawLayer(layer)
+    }
+}
+
+@Preview
+@Composable
+private fun SaturateLayer() {
+    Box(modifier = Modifier
+        .fillMaxSize()){
+        val graphicsLayer1 = rememberGraphicsLayer()
+        Image(
+            painter = painterResource(id = R.drawable.dog),
+            modifier = Modifier
+                .saturateLayer(graphicsLayer1, 1f)
+                .contrastBrightnessLayer(graphicsLayer1, contrast = 2f, brightness = 59f),
+            contentDescription = null
+        )
+
+    }
 }
