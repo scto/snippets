@@ -39,6 +39,7 @@ import com.example.compose.snippets.components.DividerExamples
 import com.example.compose.snippets.components.FloatingActionButtonExamples
 import com.example.compose.snippets.components.ProgressIndicatorExamples
 import com.example.compose.snippets.components.ScaffoldExample
+import com.example.compose.snippets.components.SearchExamples
 import com.example.compose.snippets.components.SliderExamples
 import com.example.compose.snippets.components.SwitchExamples
 import com.example.compose.snippets.graphics.ApplyPolygonAsClipImage
@@ -101,6 +102,7 @@ class SnippetsActivity : ComponentActivity() {
                                     TopComponentsDestination.CheckboxExamples -> CheckboxExamples()
                                     TopComponentsDestination.DividerExamples -> DividerExamples()
                                     TopComponentsDestination.BadgeExamples -> BadgeExamples()
+                                    TopComponentsDestination.SearchExamples -> SearchExamples()
                                 }
                             }
                         }
