@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.compose.snippets.R
 
+// [START android_compose_images_parallax]
 @Composable
 fun ParallaxEffect()
 {
@@ -55,3 +56,4 @@ fun ParallaxEffect()
             )
     }
 }
+// [END android_compose_images_parallax]
