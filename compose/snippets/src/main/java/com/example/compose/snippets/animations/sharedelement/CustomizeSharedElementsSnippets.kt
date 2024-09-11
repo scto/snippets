@@ -160,7 +160,7 @@ private fun MainContent(
                     .padding(8.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.cupcake),
+                    painter = painterResource(id = R.drawable.cupcakes),
                     contentDescription = "Cupcake",
                     modifier = Modifier
                         .sharedElement(
@@ -233,7 +233,7 @@ private fun DetailsContent(
                     .padding(8.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.cupcake),
+                    painter = painterResource(id = R.drawable.cupcakes),
                     contentDescription = "Cupcake",
                     modifier = Modifier
                         .sharedElement(
@@ -306,7 +306,7 @@ private fun SharedElement_Clipping() {
                 ) {
                     // [START android_compose_animations_shared_element_clipping]
                     Image(
-                        painter = painterResource(id = R.drawable.cupcake),
+                        painter = painterResource(id = R.drawable.cupcakes),
                         contentDescription = "Cupcake",
                         modifier = Modifier
                             .size(100.dp)
@@ -342,7 +342,7 @@ private fun SharedElement_Clipping() {
 
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.cupcake),
+                        painter = painterResource(id = R.drawable.cupcakes),
                         contentDescription = "Cupcake",
                         modifier = Modifier
                             .size(200.dp)
@@ -533,7 +533,7 @@ private fun SharedElement_SkipLookaheadSize() {
 }
 
 private val listSnacks = listOf(
-    Snack("Cupcake", "", R.drawable.cupcake),
+    Snack("Cupcake", "", R.drawable.cupcakes),
     Snack("Donut", "", R.drawable.donut),
     Snack("Eclair", "", R.drawable.eclair),
     Snack("Froyo", "", R.drawable.froyo),

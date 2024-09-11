@@ -112,7 +112,7 @@ private class SharedElementBasicUsage2 {
             // [END_EXCLUDE]
         ) {
             Image(
-                painter = painterResource(id = R.drawable.cupcake),
+                painter = painterResource(id = R.drawable.cupcakes),
                 contentDescription = "Cupcake",
                 modifier = Modifier
                     .size(100.dp)
@@ -145,7 +145,7 @@ private class SharedElementBasicUsage2 {
             // [END_EXCLUDE]
         ) {
             Image(
-                painter = painterResource(id = R.drawable.cupcake),
+                painter = painterResource(id = R.drawable.cupcakes),
                 contentDescription = "Cupcake",
                 modifier = Modifier
                     .size(200.dp)
@@ -222,7 +222,7 @@ private class SharedElementBasicUsage3 {
         ) {
             with(sharedTransitionScope) {
                 Image(
-                    painter = painterResource(id = R.drawable.cupcake),
+                    painter = painterResource(id = R.drawable.cupcakes),
                     contentDescription = "Cupcake",
                     modifier = Modifier
                         .sharedElement(
@@ -267,7 +267,7 @@ private class SharedElementBasicUsage3 {
         ) {
             with(sharedTransitionScope) {
                 Image(
-                    painter = painterResource(id = R.drawable.cupcake),
+                    painter = painterResource(id = R.drawable.cupcakes),
                     contentDescription = "Cupcake",
                     modifier = Modifier
                         .sharedElement(

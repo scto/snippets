@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.dp
 import com.example.compose.snippets.R
 
 private val listSnacks = listOf(
-    Snack("Cupcake", "", R.drawable.cupcake),
+    Snack("Cupcake", "", R.drawable.cupcakes),
     Snack("Donut", "", R.drawable.donut),
     Snack("Eclair", "", R.drawable.eclair),
     Snack("Froyo", "", R.drawable.froyo),
