@@ -41,12 +41,12 @@ android {
 
 dependencies {
 
-    // Add CameraX Compose dependency
+    implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.compose)
-    implementation("androidx.camera:camera-core:1.3.4")
-    implementation("androidx.camera:camera-camera2:1.3.4")
-
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.camera2)
     implementation(libs.accompanist.permissions)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.activity.compose)
@@ -55,7 +55,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.camera.lifecycle)
     implementation(libs.accompanist.adaptive)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

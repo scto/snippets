@@ -22,9 +22,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -40,6 +42,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
@@ -58,6 +61,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
@@ -71,21 +75,22 @@ class CameraPreviewViewModel(private val appContext: Context) : ViewModel() {
     private var surfaceMeteringPointFactory: SurfaceOrientedMeteringPointFactory? = null
 
     private val cameraPreviewUseCase = Preview.Builder().build().apply {
-        setSurfaceProvider {
-            _surfaceRequest.value = it
+        setSurfaceProvider { newSurfaceRequest ->
+            _surfaceRequest.update { newSurfaceRequest }
             surfaceMeteringPointFactory = SurfaceOrientedMeteringPointFactory(
-                it.resolution.width.toFloat(),
-                it.resolution.height.toFloat()
+                newSurfaceRequest.resolution.width.toFloat(),
+                newSurfaceRequest.resolution.height.toFloat()
             )
         }
     }
 
-    suspend fun runCamera(lifecycleOwner: LifecycleOwner) {
+    suspend fun bindToCamera(lifecycleOwner: LifecycleOwner) {
         val processCameraProvider = ProcessCameraProvider.awaitInstance(appContext)
         processCameraProvider.bindToLifecycle(
             lifecycleOwner, DEFAULT_BACK_CAMERA, cameraPreviewUseCase
         )
 
+        // Cancellation signals we're done with the camera
         try { awaitCancellation() } finally { processCameraProvider.unbindAll() }
     }
 
@@ -113,21 +118,27 @@ fun CameraPreviewScreen(
     if (cameraPermissionState.status.isGranted) {
         CameraPreviewContent(viewModel, modifier)
     } else {
-        Column(modifier.safeContentPadding()) {
+        Column(
+            modifier = modifier.fillMaxSize().wrapContentSize().widthIn(max = 480.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             val textToShow = if (cameraPermissionState.status.shouldShowRationale) {
                 // If the user has denied the permission but the rationale can be shown,
                 // then gently explain why the app requires this permission
-                "The camera is important for this app. Please grant the permission."
+                "Whoops! Looks like we need your camera to work our magic!" +
+                    "Don't worry, we just wanna see your pretty face (and maybe some cats). " +
+                    "Grant us permission and let's get this party started!"
             } else {
                 // If it's the first time the user lands on this feature, or the user
                 // doesn't want to be asked again for this permission, explain that the
                 // permission is required
-                "Camera permission required for this feature to be available. " +
-                    "Please grant the permission"
+                "Hi there! We need your camera to work our magic! ✨\n" +
+                    "Grant us permission and let's get this party started! \uD83C\uDF89"
             }
-            Text(textToShow)
+            Text(textToShow, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
             Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
-                Text("Request permission")
+                Text("Unleash the Camera!")
             }
         }
     }
@@ -143,7 +154,7 @@ fun CameraPreviewContent(
 ) {
     val surfaceRequest by viewModel.surfaceRequest.collectAsStateWithLifecycle()
 
-    LaunchedEffect(lifecycleOwner) { viewModel.runCamera(lifecycleOwner) }
+    LaunchedEffect(lifecycleOwner) { viewModel.bindToCamera(lifecycleOwner) }
 
     CameraPreviewContent(
         surfaceRequest = surfaceRequest,
@@ -163,7 +174,6 @@ fun CameraPreviewContent(
     val isTableTopPosture = displayFeatures
         ?.filterIsInstance<FoldingFeature>()
         ?.any { isTableTopPosture(it) } ?: false
-
 
     MyAnimatedTwoPane(
         isDualPane = isTableTopPosture,
