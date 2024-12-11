@@ -6,7 +6,6 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureResult
 import android.hardware.camera2.TotalCaptureResult
-import android.util.Log
 import androidx.activity.compose.LocalActivity
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.compose.CameraXViewfinder
@@ -19,24 +18,35 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
 import androidx.camera.viewfinder.compose.MutableCoordinateTransformer
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateRectAsState
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.animateBounds
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,14 +58,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.setFrom
 import androidx.compose.ui.graphics.toComposeRect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -81,7 +93,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
-import kotlin.math.roundToInt
 
 // [START android_media_camera_preview_viewmodel]
 class CameraPreviewViewModel(private val appContext: Context) : ViewModel() {
@@ -109,22 +120,19 @@ class CameraPreviewViewModel(private val appContext: Context) : ViewModel() {
                         result.get(CaptureResult.STATISTICS_FACES)
                             ?.map { face -> face.bounds }
                             ?.toList()
-                            ?.let { faces ->
-                                Log.d("JOLO", "faces: $faces")
-                                _faces.update { faces }
-                            }
+                            ?.let { faces -> _faces.update { faces } }
                     }
                 })
         }
         .build().apply {
-        setSurfaceProvider { newSurfaceRequest ->
-            _surfaceRequest.update { newSurfaceRequest }
-            surfaceMeteringPointFactory = SurfaceOrientedMeteringPointFactory(
-                newSurfaceRequest.resolution.width.toFloat(),
-                newSurfaceRequest.resolution.height.toFloat()
-            )
+            setSurfaceProvider { newSurfaceRequest ->
+                _surfaceRequest.update { newSurfaceRequest }
+                surfaceMeteringPointFactory = SurfaceOrientedMeteringPointFactory(
+                    newSurfaceRequest.resolution.width.toFloat(),
+                    newSurfaceRequest.resolution.height.toFloat()
+                )
+            }
         }
-    }
 
     suspend fun bindToCamera(lifecycleOwner: LifecycleOwner) {
         val processCameraProvider = ProcessCameraProvider.awaitInstance(appContext)
@@ -208,43 +216,52 @@ fun CameraPreviewContent(
 }
 // [END android_media_camera_preview_content]
 
+private val colors = listOf(Color(0xFF09D8E6), Color(0xFFE6C709), Color(0xFFE60991))
+
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CameraPreviewContent(
     surfaceRequest: SurfaceRequest?,
     faces: List<Rect>,
     onTapToFocus: (Offset) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val displayFeatures = LocalActivity.current?.let { calculateDisplayFeatures(it) }
     val isTableTopPosture = displayFeatures
         ?.filterIsInstance<FoldingFeature>()
         ?.any { isTableTopPosture(it) } ?: false
 
-    MyAnimatedTwoPane(
-        isDualPane = isTableTopPosture,
-        mainContent = {
+    var chosenColorIndex by remember { mutableStateOf(0) }
+
+    LookaheadScope {
+        Column(modifier.safeContentPadding()) {
             surfaceRequest?.let {
-                MainContent(it, faces, onTapToFocus, Modifier.fillMaxSize())
+                MainContent(
+                    it, colors[chosenColorIndex], faces, onTapToFocus,
+                    Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(if (isTableTopPosture) 0.5f else 1f)
+                        .animateBounds(this@LookaheadScope)
+                )
             }
-        },
-        supportingContent = {
-            Box(Modifier.fillMaxSize()) {
-                Button(onClick = { /*TODO*/ }, Modifier.align(Alignment.Center)) {
-                    Text("Take picture")
-                }
+            AnimatedVisibility(isTableTopPosture, enter = fadeIn() + slideInVertically { it }) {
+                SupportingContent(
+                    colors, chosenColorIndex, { chosenColorIndex = it }
+                )
             }
-        },
-        modifier = modifier
-    )
+        }
+    }
 }
 
 @Composable
 private fun MainContent(
     surfaceRequest: SurfaceRequest,
+    chosenColor: Color,
     faces: List<Rect>,
     onTapToFocus: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val animatedColor by animateColorAsState(chosenColor)
     var showAutofocusBox by remember { mutableStateOf(false) }
     var showAutofocusCoords by remember { mutableStateOf<Offset?>(null) }
     LaunchedEffect(showAutofocusCoords) {
@@ -253,7 +270,15 @@ private fun MainContent(
         delay(1000)
         showAutofocusBox = false
     }
-    Box(modifier) {
+    Box(
+        modifier
+            .padding(16.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .border(
+                8.dp, animatedColor,
+                RoundedCornerShape(24.dp)
+            )
+    ) {
         val coordinateTransformer = remember { MutableCoordinateTransformer() }
         CameraXViewfinder(
             surfaceRequest = surfaceRequest,
@@ -284,7 +309,7 @@ private fun MainContent(
             )
         }
 
-        var transformationInfo by remember { mutableStateOf<SurfaceRequest.TransformationInfo?>(null)}
+        var transformationInfo by remember { mutableStateOf<SurfaceRequest.TransformationInfo?>(null) }
         DisposableEffect(surfaceRequest) {
             surfaceRequest.setTransformationInfoListener(Runnable::run) {
                 transformationInfo = it
@@ -292,78 +317,70 @@ private fun MainContent(
             onDispose { surfaceRequest.clearTransformationInfoListener() }
         }
 
-        var faceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-
-        faces.forEach { face ->
+        val faceRects = faces.map { face ->
             val bufferToCompose = Matrix().apply {
                 setFrom(coordinateTransformer.transformMatrix)
                 invert()
             }
-
             val sensorToBuffer = Matrix().apply {
                 transformationInfo?.let {
                     setFrom(it.sensorToBufferTransform)
                 }
             }
-
             val faceRectOnBuffer = sensorToBuffer.map(face.toComposeRect())
-            faceRect = bufferToCompose.map(faceRectOnBuffer)
+            bufferToCompose.map(faceRectOnBuffer)
         }
 
-        faceRect?.let { face ->
-            val animatedRect by animateRectAsState(
-                targetValue = face,
-                animationSpec = tween(durationMillis = 50),
-            )
+        AnimatedVisibility(faceRects.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
             Canvas(Modifier.fillMaxSize()) {
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Color.Transparent, Color.Black),
-                        center = animatedRect.center,
-                        radius = maxOf(100f, animatedRect.minDimension),
+                // Fill the whole space with the color
+                drawRect(animatedColor)
+                // Then extract each face and make it transparent
+                faceRects.forEach { faceRect ->
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(Color.Black, Color.Transparent),
+                            center = faceRect.center,
+                            radius =  faceRect.minDimension,
+                        ),
+                        blendMode = BlendMode.DstOut
                     )
-                )
+                }
             }
         }
+
     }
 }
 
+@Composable
+fun SupportingContent(
+    colors: List<Color>,
+    chosenColorIndex: Int,
+    onColorChosen: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        colors.forEachIndexed { i, color ->
+            Spacer(
+                Modifier.size(72.dp).clip(CircleShape)
+                    .clickable { onColorChosen(i) }
+                    .background(color)
+                    .then(
+                        if (i == chosenColorIndex)
+                            Modifier.border(2.dp, Color.Black, CircleShape)
+                        else Modifier
+                    ))
+        }
+    }
+}
 
 @OptIn(ExperimentalContracts::class)
 fun isTableTopPosture(foldFeature: FoldingFeature?): Boolean {
     contract { returns(true) implies (foldFeature != null) }
     return foldFeature?.state == FoldingFeature.State.HALF_OPENED &&
         foldFeature.orientation == FoldingFeature.Orientation.HORIZONTAL
-}
-
-@Composable
-fun MyAnimatedTwoPane(
-    isDualPane: Boolean,
-    mainContent: @Composable () -> Unit,
-    supportingContent: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val animatedFraction by animateFloatAsState(
-        // this is a simplification, you'd want to use the fold bounds
-        if (isDualPane) 0.5f else 1f
-    )
-    Layout(
-        modifier = modifier,
-        contents = listOf(mainContent, supportingContent)
-    ) { (mainMeasurables, supportingMeasurables), constraints ->
-        val desiredMainHeight = (constraints.maxHeight * animatedFraction).roundToInt()
-        val desiredSupportingHeight = (constraints.maxHeight * (1f - animatedFraction)).roundToInt()
-
-        val mainConstraints = constraints.copy(maxHeight = desiredMainHeight)
-        val supportingConstraints = constraints.copy(maxHeight = desiredSupportingHeight)
-
-        val mainPlaceables = mainMeasurables.map { it.measure(mainConstraints) }
-        val supportingPlaceables = supportingMeasurables.map { it.measure(supportingConstraints) }
-
-        layout(constraints.maxWidth, constraints.maxHeight) {
-            mainPlaceables.forEach { it.place(0, 0) }
-            val mainHeight = mainPlaceables.sumOf { it.height }
-            supportingPlaceables.forEach { it.place(0, mainHeight) }
-        }
-    }
 }
