@@ -35,7 +35,7 @@ appcompat = "1.7.0"
 coil = "2.7.0"
 # @keep
 compileSdk = "35"
-compose-latest = "1.8.0"
+compose-latest = "1.8.1"
 composeUiTooling = "1.4.1"
 coreSplashscreen = "1.0.1"
 coroutines = "1.10.2"
