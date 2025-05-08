@@ -77,7 +77,7 @@ webkit = "1.13.0"
 
 [libraries]
 accompanist-adaptive = { module = "com.google.accompanist:accompanist-adaptive", version.ref = "accompanist" }
-accompanist-permissions = "com.google.accompanist:accompanist-permissions:0.37.2"
+accompanist-permissions = "com.google.accompanist:accompanist-permissions:0.37.3"
 accompanist-theme-adapter-appcompat = { module = "com.google.accompanist:accompanist-themeadapter-appcompat", version.ref = "accompanist" }
 accompanist-theme-adapter-material = { module = "com.google.accompanist:accompanist-themeadapter-material", version.ref = "accompanist" }
 accompanist-theme-adapter-material3 = { module = "com.google.accompanist:accompanist-themeadapter-material3", version.ref = "accompanist" }
