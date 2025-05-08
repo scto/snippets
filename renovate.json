@@ -1,0 +1,63 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>DanySK/renovate-config"
+  ],
+  "automerge": true,
+  "forkProcessing": "enabled",
+  "labels": [
+    "dependencies"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "packageRules": [
+    {
+      "groupName": "Kotlin & KSP",
+      "matchPackageNames": [
+        "com.google.devtools.ksp{/,}**",
+        "/org.jetbrains.kotlin.*/"
+      ]
+    },
+    {
+      "groupName": "AndroidX Navigation",
+      "matchPackageNames": [
+        "/androidx.navigation.*/"
+      ]
+    },
+    {
+      "description": "Trigger a minor update on some dependencies",
+      "matchDepNames": [
+        "/^org\\.apache\\.commons:commons-math3$/",
+        "/^org\\.danilopianini:listset$/"
+      ],
+      "semanticCommitScope": "api-deps"
+    },
+    {
+      "description": "Some updates should have type docs",
+      "matchDepNames": [
+        "/^org\\.jetbrains\\.dokka.*/",
+        "gohugoio/hugo"
+      ],
+      "semanticCommitType": "docs"
+    },
+    {
+      "description": "Identify some updates as core",
+      "matchDepNames": [
+        "/^it\\.unibo\\.scafi:.*/",
+        "/^org\\.jetbrains\\.kotlin:.*/",
+        "/^org\\.protelis:.*/"
+      ],
+      "semanticCommitScope": "core-deps"
+    },
+    {
+      "description": "Updates to to the site should have type docs",
+      "matchFileNames": [
+        "site/*"
+      ],
+      "semanticCommitType": "docs"
+    }
+  ],
+  "ignorePaths": [
+    "testing/resources/**",
+    "gradle-plugin/src/test/resources/**"
+  ]
+}
