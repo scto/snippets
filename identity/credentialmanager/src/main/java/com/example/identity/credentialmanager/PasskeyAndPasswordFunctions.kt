@@ -22,6 +22,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.appcompat.widget.AppCompatEditText
 import androidx.credentials.CreatePasswordRequest
 import androidx.credentials.CreatePublicKeyCredentialRequest
 import androidx.credentials.CredentialManager
@@ -31,15 +32,16 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.GetPasswordOption
 import androidx.credentials.GetPublicKeyCredentialOption
 import androidx.credentials.PasswordCredential
+import androidx.credentials.PendingGetCredentialRequest
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.CreateCredentialCancellationException
 import androidx.credentials.exceptions.CreateCredentialCustomException
 import androidx.credentials.exceptions.CreateCredentialException
 import androidx.credentials.exceptions.CreateCredentialInterruptedException
 import androidx.credentials.exceptions.CreateCredentialProviderConfigurationException
-import androidx.credentials.exceptions.CreateCredentialUnknownException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialDomException
+import androidx.credentials.pendingGetCredentialRequest
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -128,6 +130,53 @@ class PasskeyAndPasswordFunctions (
       }
       // [END android_identity_handle_exceptions_no_credential]
     }
+  }
+
+  fun autofillImplementation(
+    requestJson: String
+  ) {
+    // [START android_identity_autofill_construct_request]
+    // Retrieves the user's saved password for your app.
+    val getPasswordOption = GetPasswordOption()
+
+    // Get a passkey from the user's public key credential provider.
+    val getPublicKeyCredentialOption = GetPublicKeyCredentialOption(
+      requestJson = requestJson
+    )
+
+    val getCredRequest = GetCredentialRequest(
+      listOf(getPasswordOption, getPublicKeyCredentialOption)
+    )
+    // [END android_identity_autofill_construct_request]
+
+    runBlocking {
+      // [START android_identity_autofill_get_credential_api]
+      coroutineScope {
+        try {
+          val result = credentialManager.getCredential(
+            context = activityContext, // Use an activity-based context.
+            request = getCredRequest
+          )
+          handleSignIn(result);
+        } catch (e: GetCredentialException) {
+          handleFailure(e);
+        }
+      }
+      // [END android_identity_autofill_get_credential_api]
+    }
+
+    val usernameEditText: androidx.appcompat.widget.AppCompatEditText = AppCompatEditText(activityContext)
+    val passwordEditText: androidx.appcompat.widget.AppCompatEditText = AppCompatEditText(activityContext)
+
+    // [START android_identity_autofill_enable_edit_text]
+    usernameEditText.pendingGetCredentialRequest = PendingGetCredentialRequest(
+      getCredRequest) { response -> handleSignIn(response)
+    }
+
+    passwordEditText.pendingGetCredentialRequest = PendingGetCredentialRequest(
+      getCredRequest) { response -> handleSignIn(response)
+    }
+    // [END android_identity_autofill_enable_edit_text]
   }
 
   // [START android_identity_launch_sign_in_flow_2]
@@ -238,6 +287,8 @@ class PasskeyAndPasswordFunctions (
     }
   }
   // [END android_identity_handle_create_passkey_failure]
+
+  fun handleFailure(e: GetCredentialException) { }
 
   // [START android_identity_register_password]
   suspend fun registerPassword(username: String, password: String) {
